@@ -1,0 +1,551 @@
+
+<!DOCTYPE html><html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="hexo-theme" content="https://github.com/xaoxuu/hexo-theme-stellar/tree/1.27.0" theme-name="Stellar" theme-version="1.27.0">
+  
+  <meta name="generator" content="Hexo 7.2.0">
+  <meta http-equiv='x-dns-prefetch-control' content='on' />
+  
+  <meta name="renderer" content="webkit">
+  <meta name="force-rendering" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+  <meta name="HandheldFriendly" content="True" >
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#f8f8f8">
+  
+  <title>基于MCTS的IndexAdviser - Hexo</title>
+
+  
+    <meta name="description" content="在本节中，我们首先解释了在问题中使用蒙特卡罗树搜索的动机，说明mcts在索引推荐方面的缺陷，针对这些缺陷提出了我们的改进，然后给出了我们模型的总体框架，介绍如何基于工作负载特征有效地推荐以及更新索引。  5.1 MCTS-based Index SelectionThe motivation of using MCTS 在本小节中，我们将介绍如何基于MCTS高效地进行索引推荐。第一，由于通常一个工">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于MCTS的IndexAdviser">
+<meta property="og:url" content="http://example.com/2024/04/20/%E5%9F%BA%E4%BA%8EMCTS%E7%9A%84IndexAdviser/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="在本节中，我们首先解释了在问题中使用蒙特卡罗树搜索的动机，说明mcts在索引推荐方面的缺陷，针对这些缺陷提出了我们的改进，然后给出了我们模型的总体框架，介绍如何基于工作负载特征有效地推荐以及更新索引。  5.1 MCTS-based Index SelectionThe motivation of using MCTS 在本小节中，我们将介绍如何基于MCTS高效地进行索引推荐。第一，由于通常一个工">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://prod-files-secure.s3.us-west-2.amazonaws.com/90972239-6e01-48ed-b63a-e58318f2ea05/342105ea-c513-40a6-b062-94c61273d20b/image.png">
+<meta property="article:published_time" content="2024-04-20T14:48:17.000Z">
+<meta property="article:modified_time" content="2024-04-20T14:50:32.587Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://prod-files-secure.s3.us-west-2.amazonaws.com/90972239-6e01-48ed-b63a-e58318f2ea05/342105ea-c513-40a6-b062-94c61273d20b/image.png">
+  
+  
+  
+  
+
+  <!-- feed -->
+  
+
+  <link rel="stylesheet" href="/css/main.css?v=1.27.0">
+
+  
+
+  
+
+  
+</head>
+<body>
+
+<div class="l_body s:aa content tech" id="start" layout="post" ><aside class="l_left"><div class="leftbar-container">
+
+
+<header class="header"><div class="logo-wrap"><a class="avatar" href="/about/"><div class="bg" style="opacity:0;background-image:url(https://gcore.jsdelivr.net/gh/cdn-x/placeholder@1.0.12/avatar/round/rainbow64@3x.webp);"></div><img no-lazy class="avatar" src="undefined" onerror="javascript:this.classList.add('error');this.src='https://gcore.jsdelivr.net/gh/cdn-x/placeholder@1.0.12/image/2659360.svg';"></a><a class="title" href="/"><div class="main" ff="title">Hexo</div></a></div></header>
+
+<div class="nav-area">
+<div class="search-wrapper" id="search-wrapper"><form class="search-form"><a class="search-button" onclick="document.getElementById(&quot;search-input&quot;).focus();"><svg t="1705074644177" viewBox="0 0 1025 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1560" width="200" height="200"><path d="M1008.839137 935.96571L792.364903 719.491476a56.783488 56.783488 0 0 0-80.152866 0 358.53545 358.53545 0 1 1 100.857314-335.166073 362.840335 362.840335 0 0 1-3.689902 170.145468 51.248635 51.248635 0 1 0 99.217358 26.444296 462.057693 462.057693 0 1 0-158.255785 242.303546l185.930047 185.725053a51.248635 51.248635 0 0 0 72.568068 0 51.248635 51.248635 0 0 0 0-72.978056z" p-id="1561"></path><path d="M616.479587 615.969233a50.428657 50.428657 0 0 0-61.498362-5.534852 174.655348 174.655348 0 0 1-177.525271 3.484907 49.403684 49.403684 0 0 0-58.833433 6.76482l-3.074918 2.869923a49.403684 49.403684 0 0 0 8.609771 78.10292 277.767601 277.767601 0 0 0 286.992355-5.739847 49.403684 49.403684 0 0 0 8.404776-76.667958z" p-id="1562"></path></svg></a><input type="text" class="search-input" id="search-input" placeholder="Search"></form><div id="search-result"></div><div class="search-no-result">No Results!</div></div>
+
+
+<nav class="menu dis-select"></nav>
+</div>
+<div class="widgets">
+
+
+<widget class="widget-wrapper post-list"><div class="widget-header dis-select"><span class="name">Recent Update</span></div><div class="widget-body fs14"><a class="item title" href="/2024/04/20/%E4%B8%AA%E4%BA%BA%E4%BB%8B%E7%BB%8D/"><span class="title">文章名，中文也行</span></a><a class="item title" href="/2024/04/20/%E5%9F%BA%E4%BA%8EMCTS%E7%9A%84IndexAdviser/"><span class="title">基于MCTS的IndexAdviser</span></a><a class="item title" href="/2024/04/20/hello-world/"><span class="title">Hello World</span></a></div></widget>
+</div>
+
+</div></aside><div class="l_main" id="main">
+
+
+
+
+
+<div class="article banner top">
+  <div class="content">
+    <div class="top bread-nav footnote"><div class="left"><div class="flex-row" id="breadcrumb"><a class="cap breadcrumb" href="/">Home</a>
+<span class="sep"></span><a class="cap breadcrumb" href="/">Blog</a></div>
+<div class="flex-row" id="post-meta"><span class="text created">Posted on: <time datetime="2024-04-20T14:48:17.000Z">2024-04-20</time></span><span class="sep updated"></span><span class="text updated">Updated on: <time datetime="2024-04-20T14:50:32.587Z">2024-04-20</time></span></div></div></div>
+    
+    <div class="bottom only-title">
+      
+      <div class="text-area">
+        <h1 class="text title"><span>基于MCTS的IndexAdviser</span></h1>
+        
+      </div>
+    </div>
+    
+  </div>
+  </div><article class="md-text content"><p>在本节中，我们首先解释了在问题中使用蒙特卡罗树搜索的动机，说明mcts在索引推荐方面的缺陷，针对这些缺陷提出了我们的改进，然后给出了我们模型的总体框架，介绍如何基于工作负载特征有效地推荐以及更新索引。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="https://prod-files-secure.s3.us-west-2.amazonaws.com/90972239-6e01-48ed-b63a-e58318f2ea05/342105ea-c513-40a6-b062-94c61273d20b/image.png" alt="image.png"></p>
+<h2 id="5-1-MCTS-based-Index-Selection"><a href="#5-1-MCTS-based-Index-Selection" class="headerlink" title="5.1 MCTS-based Index Selection"></a><em>5.1 MCTS-based Index Selection</em></h2><p>The motivation of using MCTS</p>
+<p>在本小节中，我们将介绍如何基于MCTS高效地进行索引推荐。第一，由于通常一个工作负载的候选索引空间都很大，MCTS通过随机化搜索和动态调整搜索策略，能够在庞大的候选索引空间中高效地进行探索。相比于传统的穷举搜索或贪婪算法，MCTS能够有效地在大规模空间中找到最优解，节省了大量的搜索时间和计算资源。第二，对于动态的工作负载，MCTS能够在候选索引集合发生变化时，快速地调整搜索策略，以适应新的索引配置。具体来说，当数据库中的索引发生变化（例如添加新的索引、删除旧的索引或修改索引参数）时，传统的索引选择方法往往需要重新建立索引模型或者重新优化查询计划，耗费大量的时间和计算资源。然而，利用MCTS的增量更新方法，可以在不重新建模或者重新优化的情况下，快速地调整搜索策略，以适应新的索引配置。增量更新方法的基本思想是在原有的搜索树基础上，根据新的索引配置信息，动态地调整节点的选择概率和收益估计，以反映新的索引效果。通过在原有搜索树上进行局部的更新和调整，可以快速地适应新的索引配置，并继续搜索最优的索引解决方案。这种增量更新方法能够显著提高索引更新的效率和准确性，减少了重新建模或者重新优化的成本。第三，（+例子）指标与工作负载之间存在相关性，贪婪地选择高效益指标可能属于次优状态。例如，在TPC-DS中，在imactid和日期dim上分别创建索引可能有很小的好处（在爬山算法中直接下降）。相反，如果我们同时创建这两个索引，那么查询Q32的执行时间就会大大减少，因为只有当这两个索引可用时，在Q32中的子查询才会得到增强。</p>
+<p>定义</p>
+<p>MCTS [23]的核心思想是在策略树上搜索时，在开发（高收益）和探索（低频率）之间取得平衡，这有助于避免次优。要应用MCTS，第一步是定义策略树中节点效用。</p>
+<p>节点效用：如果一个节点位于从根节点到最优节点的路径上，那么它就具有更高的节点效用。但是，由于每个节点可能有许多子节点，因此很难预测该节点是否在最优路径上。为了解决这个问题，给定一个节点，我们通过考虑两个主要因素来计算其节点效用：</p>
+<ul>
+<li>节点效益$B(v_i)$。给定一个策略树，我们将节点$v_i$的全局节点效益定义为$v_i$或$v_i$的子节点的最高成本降低值，$B(v_i) &#x3D; \begin{cases}<br>cost(W) - cost(W, I_i) &amp; \text{leaf node} \<br>\max(cost(W) - cost(W, I_i)), \quad v_j \in V_i &amp; \text{otherwise}<br>\end{cases}$，$V_i$表示$v_i$的后代节点。如果$v_i$是叶节点，则$B(v_i)$等于有、无当前索引配置的Workload下Cost的差值；否则，$B(v_i)$是其子节点的Cost提升的最大值。由于$v_i$可能有大量的子节点，我们随机探索几个基于$v_i$的叶节点或到达存储约束的子节点（例如，数十个索引的5个叶节点），以增强探索过程。</li>
+</ul>
+<p>显然，我们希望以高效益访问节点。然而，估计的收益可能并不准确，如果我们总是访问这样的节点，我们可能会错过真正的最优节点。为了解决这个问题，我们还考虑了一个节点的访问频率，并平衡了收益和频率，以避免陷入局部最优或错误的方向。</p>
+<ul>
+<li>探索频率$F(v_i)$。访问频率表示选择新子节点时节点vi的访问次数。除了节点的效益外，我们还倾向于选择很少被访问的节点，以尝试更多可能的索引，避免陷入局部最优。例如，在图4中，当从候选索引中选择时，如果我们贪婪地选择I3 c，我们只能进一步选择I1 c或I2 c作为存储限制。相反，I1 c和I2 c的组合可以获得更高的好处，因此我们需要尝试更少频繁地选择的节点。这样，我们将节点的效用定义为节点在从根节点到最优节点的路径上的概率的上限置信界（UCB），通过考虑节点利益$B(v_i)$和访问频率$F(v_i)$，</li>
+</ul>
+<p>$U(v_i) &#x3D; B(v_i) + \gamma \cdot \frac{\sqrt{\ln(F(v_0))}}{F(v_i)}$<br>，其中，$F(v_0)&#x3D;\sum_{i \geq 1} F(v_i)$为总访问量，$γ$为调整未发现索引组合的探索量的探索参数。</p>
+<p>基于MCTS的索引更新。如图所示，为了有效地更新所选的索引（已探索的节点）和探索新的索引（未探索的节点），完整的基于MCTS的索引推荐过程包括四个步骤。</p>
+<p><strong>第一步：Selection（选择）</strong>：在树中找到一个最优的值得探索的节点。通常情况下，首选未被探索过的子节点，如果所有子节点都已被探索，则选择具有最高UCB值的子节点。</p>
+<p><strong>第二步：Expansion（扩展）</strong>：在选定的子节点中，向前迈出一步，创建一个新的子节点。这个新节点代表了对索引空间的额外探索。通常，我们会采取随机操作的方式，并确保所选操作与已探索的路径不重复。</p>
+<p><strong>第三步：Simulation（模拟）</strong>：在新创建的扩展节点上，模拟游戏或应用场景，直到达到结束状态。在模拟的过程中，计算结束状态下索引配置的成本收益，以评估当前扩展节点的性能。</p>
+<p><strong>第四步：Backpropagation（更新）</strong>：将扩展节点的得分反馈到其所有父节点中，更新这些节点的质量值和访问次数。通过这种方式，我们不仅更新了已经探索过的节点的信息，还为未来的节点选择提供了更准确的指导。</p>
+<p>通过这四个步骤，基于MCTS的索引更新过程能够有效地同时更新已探索的索引节点和探索新的索引节点，从而全面地探索索引空间，提高索引推荐的准确性和效率。</p>
+<p><del>DTA等greedy的缺陷:</del></p>
+<p>在DTA等传统的贪心算法中，单步最优的选择候选索引，会导致无法识别出一些索引的组合收益，如[I(C income_band.ib_income_band_sk), I(C catalog_sales.cs_ship_customer_sk), I(C date_dim.d_moy,C date_dim.d_year)]三个索引的单个收益分别为<strong>2.8、0.0、 36434。</strong>但是组合收益为<strong>63782。</strong>这三个优秀的索引不会被DTA选择到<strong>。</strong>传统的贪心算法可能无法识别出一些索引的组合收益，导致无法选择到潜在的更优秀的索引组合。这表明在处理索引推荐问题时，仅仅依赖单步最优的选择可能会忽略掉一些潜在的高收益索引组合，从而影响最终的性能表现。</p>
+<p>MCTS的缺陷</p>
+<ol>
+<li><strong>计算成本高</strong>: MCTS在模拟阶段，需要大量的计算资源和时间来达到良好的性能。尤其是在搜索空间庞大或搜索树深度较大时，计算成本可能会显著增加。</li>
+<li>expand阶段：因为候选索引空间可能非常庞大，MCTS在扩展阶段会对所有没有探索过的节点进行扩展。这可能导致对很多无效的索引进行了扩展，因为其中某些索引可能不会在后续搜索中产生显著的性能提升。对所有未探索过的节点进行扩展可能需要大量的时间和计算资源。如果候选索引空间非常庞大，那么扩展所有节点可能会导致搜索过程变得非常耗时。扩展了大量无效的节点可能会分散搜索的精力，使得MCTS算法难以集中在潜在的高质量索引上。这可能会导致无法找到最佳索引或者陷入次优解。</li>
+<li><strong>采样偏差</strong>: MCTS使用随机采样来探索搜索空间，但随机性可能导致采样偏差。不同的随机采样可能导致不同的搜索结果，从而影响最终的决策。</li>
+</ol>
+<p>我们的方案</p>
+<p>为了解决上述基于MCTS的索引选择中的问题，我们提出了多种改进的策略。我们的策略有</p>
+<p>1、模拟阶段引入索引动作能带来的潜在收益，使用<strong>Boltzmann探索，</strong>引导mcts向有价值的区域进行探索，</p>
+<p>2、expand阶段，只选择前1&#x2F;2个提升潜力值最大的节点进行扩展</p>
+<p>3、使用超过提升潜力80%的查询组合进行reward计算，在保证效果的同时，可以有效的提升效率，极大的减少了what-if调用次数。我们将在接下来的部分详细介绍这些改进措施。</p>
+<h2 id="5-2-Selection"><a href="#5-2-Selection" class="headerlink" title="5.2 Selection"></a>5.2 Selection</h2><p>在这种情况下，你希望根据先验知识中提供的收益值来优先选择节点进行扩展，以便更加智能地探索搜索空间。</p>
+<p>因此，在MCTS算法中，可以根据每个节点的收益值来选择需要扩展的节点。具体来说，可以按照收益值对所有未探索的节点进行排序，然后选择收益值较高的前1&#x2F;2个节点进行扩展。这样做可以确保在有限的计算资源下，将重点放在对性能改进有更大希望的节点上，从而提高算法的效率。</p>
+<p>尽管收益值是估计值并可能存在不确定性，但利用这些先验知识来指导节点扩展仍然是一种合理的策略，可以在搜索过程中提供更多的方向性和引导，有助于提高算法的性能。</p>
+<h2 id="5-3-Expansion-and-Stimulation"><a href="#5-3-Expansion-and-Stimulation" class="headerlink" title="5.3 Expansion and Stimulation"></a>5.3 <strong>Expansion and</strong> Stimulation</h2><ul>
+<li><input disabled="" type="checkbox"> 利用Boltzmann探索，引导mcts向有价值的区域进行探索</li>
+<li><input disabled="" type="checkbox"> 使用潜在收益的查询组合优化方法，减少what-if优化器的调用次数</li>
+<li><input disabled="" type="checkbox"> 根据节点的潜在收益值选择需要扩展的节点，提高搜索效率和准确性</li>
+</ul>
+<p>Stimulation:</p>
+<ul>
+<li>（+ 例子-单个收益小的索引也能被识别为高潜力索引、而且具有随机性选择可以避免greedy无法识别组合收益的情况）将提升潜力大的索引进行优先组合，说明比DTA好的原因</li>
+</ul>
+<p>在MCTS的模拟阶段中，首先，我们根据上文模型一获取每个候选索引对整个工作负载的潜在收益值-A。这个A反映了每个索引在当前工作负载下对性能的预期提升程度，是我们指导索引选择的重要线索。我们可以结合候选索引的潜在收益A和MCTS树的高度来进行Boltzmann探索。这样可以使得探索更加集中于具有更高潜力的区域，而不是随机地探索整个搜索空间。Boltzmann探索是一种基于概率的探索方法，它使用了一个称为Boltzmann分布的概率分布来选择动作。Boltzmann分布的公式如下所示：</p>
+<p>$$<br>P(a_i) &#x3D; \frac{e^{Q(a_i)&#x2F;T}}{\sum_{j&#x3D;1}^n e^{Q(a_j)&#x2F;T}}<br>$$</p>
+<p>在这个公式中，$<em>P(a_i)</em>$ 是选择动作 $<em>a_i</em>$ 的概率，$<em>Q(a_i)</em>$ 是动作 $<em>ai</em>$ 的价值（在索引选择中对应的是潜在收益-A），$<em>T</em>$ 是温度参数。温度 $T$ 控制了概率分布的形状，越高的温度值意味着更多的随机性，而较低的温度值则更倾向于选择具有较高价值的动作。在模拟阶段，我们根据每个候选索引的潜在收益（即 $Q(a_i)$）和MCTS树的高度来调整温度值 $<em>T</em>$。设计一个函数，将MCTS树的高度映射到温度值上。例如，可以使用线性或指数衰减函数，随着MCTS树的高度增加，候选索引的置信度逐渐降低，将温度值逐渐增大，从而增加随机探索的程度。这种方法充分利用了模型一中得到的每个候选索引的先验信息，引导mcts向更有价值的区域进行探索 ，会对潜力大的候选索引进行更多的探索，但也不忽略对潜力小的候选索引的探索，防止算法陷入局部最优解，尤其是在搜索空间庞大或者存在多个局部最优解的情况下。并结合了MCTS树的状态动态调整探索策略，（+为什高度越高，随机性越大），使得索引选择更加智能高效。Boltzmann探索算法的灵活性允许我们根据不同问题的特性和MCTS树的状态动态调整温度值，从而更好地平衡探索和开发，提高索引选择的效率和准确性</p>
+<p>reward：</p>
+<p>这里是query的potential+影响力，所以不会照顾不到没有选中的query</p>
+<p>将重点聚焦于提升潜力大的查询</p>
+<p>在MCTS的模拟阶段，面临的挑战之一是计算成本和资源消耗较高，主要源于每次探索都需要对整个工作负载的所有查询都进行一次成本收益也就是what-if优化器调用计算。在大规模查询和复杂工作负载下，这样需要调用大量的wha-if优化器。因此，我们提出了一种基于潜在收益的查询组合优化方法。具体而言，我们利用了先前模型得出的每个查询的潜在收益作为指导，在模拟阶段计算reward的时候，只选择潜在收益之和达到一定阈值的查询组合进行整体成本收益计算，例如，我们可以选择总潜在收益达到80%的查询集合进行计算。这一改进策略有效地减少了每次探索时what-if优化器的调用次数，提高了算法的效率，并在实验中取得了良好的性能表现。</p>
+<p>然而，这种方法存在一个潜在的问题，即未被选中的查询无法得到优化。这可能导致一些查询无法获得性能提升，因为它们未被包含在计算中。针对这个问题，我们可以考虑一些额外的策略，如周期性地重新评估未被选中的查询，或者在每次迭代中随机选择一小部分未被选中的查询进行优化。这样可以确保整个工作负载中的所有查询都能得到一定程度的关注和优化，从而提高整体性能。</p>
+<p><strong>Expansion：</strong></p>
+<p>在节点的扩展阶段，mcts在继续向下扩展节点前会先探索完同一层的所有其他节点，由于候选索引的空间可能非常大，存在很多无效的候选索引是不需要进行选择的，所以当使用MCTS算法进行节点扩展时，我们可以根据上文获得的每个节点的潜在收益值来选择需要扩展的节点。具体来说，可以优先选择潜在收益值较高的节点进行扩展，以提高搜索效率和准确性。在实现中，可以将所有未探索的节点按照其潜在收益值进行排序，然后选择前1&#x2F;2个提升潜力值最大的节点进行扩展，例如在候选索引个数为200的空间下，算法最终选择的索引个数一般不会超过50个。这样做可以确保在有限的计算资源下，将重点放在对性能改进最有希望的节点上，而忽略那些潜在收益值较低的节点，从而提高算法的效率。通过这种策略，MCTS算法可以更加智能地选择需要扩展的节点，从而更有效地探索搜索空间，提高问题求解的性能和准确性。</p>
+<p>要点</p>
+<ul>
+<li><input disabled="" type="checkbox"> INCREMENTAL INDEX MANAGEMENT 动态性</li>
+<li><input disabled="" type="checkbox"> 针对组合收益的探索</li>
+<li><input disabled="" type="checkbox"> 模拟阶段为什么越低会越随机：影响力是对整个workload的影响，在后面可能建立了其他索引的基础上，这个影响力就没有一开始没有建立索引时那么准确</li>
+<li><input disabled="" type="checkbox"> 与DTA相比的优势怎么体现</li>
+</ul>
+
+<div class="article-footer fs14">
+    <section id="license">
+      <div class="header"><span>License</span></div>
+      <div class="body"><p>本文采用 <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">署名-非商业性使用-相同方式共享 4.0 国际</a> 许可协议，转载请注明出处。</p>
+</div>
+    </section>
+    </div>
+</article>
+<div class="related-wrap" id="read-next"><section class="body"><div class="item" id="prev"></div><div class="item" id="next"><div class="note">Older</div><a href="/2024/04/20/%E4%B8%AA%E4%BA%BA%E4%BB%8B%E7%BB%8D/">文章名，中文也行</a></div></section></div>
+
+
+
+
+
+
+<footer class="page-footer footnote"><hr><div class="text"><p>本站由 <a href="/">John Doe</a> 使用 <a target="_blank" rel="noopener" href="https://github.com/xaoxuu/hexo-theme-stellar/tree/1.27.0">Stellar 1.27.0</a> 主题创建。<br>本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> 许可协议，转载请注明出处。</p>
+</div></footer>
+<div class="main-mask" onclick="sidebar.dismiss()"></div></div><aside class="l_right">
+<div class="widgets">
+
+
+
+<widget class="widget-wrapper toc" id="data-toc" collapse="false"><div class="widget-header dis-select"><span class="name">On This Page</span><a class="cap-action" onclick="sidebar.toggleTOC()" ><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6h11m-11 6h11m-11 6h11M4 6h1v4m-1 0h2m0 8H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></a></div><div class="widget-body"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#5-1-MCTS-based-Index-Selection"><span class="toc-text">5.1 MCTS-based Index Selection</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-2-Selection"><span class="toc-text">5.2 Selection</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-3-Expansion-and-Stimulation"><span class="toc-text">5.3 Expansion and Stimulation</span></a></li></ol></div><div class="widget-footer">
+
+<a class="top" onclick="util.scrollTop()"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12c0-4.714 0-7.071 1.464-8.536C4.93 2 7.286 2 12 2c4.714 0 7.071 0 8.535 1.464C22 4.93 22 7.286 22 12c0 4.714 0 7.071-1.465 8.535C19.072 22 16.714 22 12 22s-7.071 0-8.536-1.465C2 19.072 2 16.714 2 12Z"/><path stroke-linecap="round" stroke-linejoin="round" d="m9 15.5l3-3l3 3m-6-4l3-3l3 3"/></g></svg><span>Scroll to Top</span></a></div></widget>
+</div></aside><div class='float-panel blur'>
+  <button type='button' style='display:none' class='laptop-only rightbar-toggle mobile' onclick='sidebar.rightbar()'>
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6h11m-11 6h11m-11 6h11M4 6h1v4m-1 0h2m0 8H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+  </button>
+  <button type='button' style='display:none' class='mobile-only leftbar-toggle mobile' onclick='sidebar.leftbar()'>
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11c0-3.771 0-5.657 1.172-6.828C4.343 3 6.229 3 10 3h4c3.771 0 5.657 0 6.828 1.172C22 5.343 22 7.229 22 11v2c0 3.771 0 5.657-1.172 6.828C19.657 21 17.771 21 14 21h-4c-3.771 0-5.657 0-6.828-1.172C2 18.657 2 16.771 2 13z"/><path id="sep" stroke-linecap="round" d="M5.5 10h6m-5 4h4m4.5 7V3"/></g></svg>
+  </button>
+</div>
+</div><div class="scripts">
+<script type="text/javascript">
+  const ctx = {
+    date_suffix: {
+      just: `Just`,
+      min: `minutes ago`,
+      hour: `hours ago`,
+      day: `days ago`,
+    },
+    root : `/`,
+  };
+
+  // required plugins (only load if needs)
+  if (`local_search`) {
+    ctx.search = {};
+    ctx.search.service = `local_search`;
+    if (ctx.search.service == 'local_search') {
+      let service_obj = Object.assign({}, `{"field":"all","path":"/search.json","content":true,"sort":"-date"}`);
+      ctx.search[ctx.search.service] = service_obj;
+    }
+  }
+  const def = {
+    avatar: `https://gcore.jsdelivr.net/gh/cdn-x/placeholder@1.0.12/avatar/round/3442075.svg`,
+    cover: `https://gcore.jsdelivr.net/gh/cdn-x/placeholder@1.0.12/cover/76b86c0226ffd.svg`,
+  };
+  const deps = {
+    jquery: `https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js`,
+    marked: `https://cdn.bootcdn.net/ajax/libs/marked/4.0.18/marked.min.js`
+  }
+  
+
+</script>
+
+<script type="text/javascript">
+  const utils = {
+    // 懒加载 css https://github.com/filamentgroup/loadCSS
+    css: (href, before, media, attributes) => {
+      var doc = window.document;
+      var ss = doc.createElement("link");
+      var ref;
+      if (before) {
+        ref = before;
+      } else {
+        var refs = (doc.body || doc.getElementsByTagName("head")[0]).childNodes;
+        ref = refs[refs.length - 1];
+      }
+      var sheets = doc.styleSheets;
+      if (attributes) {
+        for (var attributeName in attributes) {
+          if (attributes.hasOwnProperty(attributeName)) {
+            ss.setAttribute(attributeName, attributes[attributeName]);
+          }
+        }
+      }
+      ss.rel = "stylesheet";
+      ss.href = href;
+      ss.media = "only x";
+      function ready(cb) {
+        if (doc.body) {
+          return cb();
+        }
+        setTimeout(function () {
+          ready(cb);
+        });
+      }
+      ready(function () {
+        ref.parentNode.insertBefore(ss, before ? ref : ref.nextSibling);
+      });
+      var onloadcssdefined = function (cb) {
+        var resolvedHref = ss.href;
+        var i = sheets.length;
+        while (i--) {
+          if (sheets[i].href === resolvedHref) {
+            return cb();
+          }
+        }
+        setTimeout(function () {
+          onloadcssdefined(cb);
+        });
+      };
+      function loadCB() {
+        if (ss.addEventListener) {
+          ss.removeEventListener("load", loadCB);
+        }
+        ss.media = media || "all";
+      }
+      if (ss.addEventListener) {
+        ss.addEventListener("load", loadCB);
+      }
+      ss.onloadcssdefined = onloadcssdefined;
+      onloadcssdefined(loadCB);
+      return ss;
+    },
+
+    js: (src, opt) => new Promise((resolve, reject) => {
+      var script = document.createElement('script');
+      if (src.startsWith('/')){
+        src = ctx.root + src.substring(1);
+      }
+      script.src = src;
+      if (opt) {
+        for (let key of Object.keys(opt)) {
+          script[key] = opt[key]
+        }
+      } else {
+        // 默认异步，如果需要同步，第二个参数传入 {} 即可
+        script.async = true
+      }
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    }),
+
+    jq: (fn) => {
+      if (typeof jQuery === 'undefined') {
+        utils.js(deps.jquery).then(fn)
+      } else {
+        fn()
+      }
+    },
+    
+    onLoading: (el) => {
+      if (el) {
+        $(el).append('<div class="loading-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2"><path stroke-dasharray="60" stroke-dashoffset="60" stroke-opacity=".3" d="M12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3Z"><animate fill="freeze" attributeName="stroke-dashoffset" dur="1.3s" values="60;0"/></path><path stroke-dasharray="15" stroke-dashoffset="15" d="M12 3C16.9706 3 21 7.02944 21 12"><animate fill="freeze" attributeName="stroke-dashoffset" dur="0.3s" values="15;0"/><animateTransform attributeName="transform" dur="1.5s" repeatCount="indefinite" type="rotate" values="0 12 12;360 12 12"/></path></g></svg></div>');
+      }
+    },
+    onLoadSuccess: (el) => {
+      if (el) {
+        $(el).find('.loading-wrap').remove();
+      }
+    },
+    onLoadFailure: (el) => {
+      if (el) {
+        $(el).find('.loading-wrap svg').remove();
+        $(el).find('.loading-wrap').append('<svg xmlns="http://www.w3.org/2000/svg" width="2em" height="2em" preserveAspectRatio="xMidYMid meet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path stroke-dasharray="60" stroke-dashoffset="60" d="M12 3L21 20H3L12 3Z"><animate fill="freeze" attributeName="stroke-dashoffset" dur="0.5s" values="60;0"/></path><path stroke-dasharray="6" stroke-dashoffset="6" d="M12 10V14"><animate fill="freeze" attributeName="stroke-dashoffset" begin="0.6s" dur="0.2s" values="6;0"/></path></g><circle cx="12" cy="17" r="1" fill="currentColor" fill-opacity="0"><animate fill="freeze" attributeName="fill-opacity" begin="0.8s" dur="0.4s" values="0;1"/></circle></svg>');
+        $(el).find('.loading-wrap').addClass('error');
+      }
+    },
+    request: (el, url, callback, onFailure) => {
+      let retryTimes = 3;
+      utils.onLoading(el);
+      function req() {
+        return new Promise((resolve, reject) => {
+          let status = 0; // 0 等待 1 完成 2 超时
+          let timer = setTimeout(() => {
+            if (status === 0) {
+              status = 2;
+              timer = null;
+              reject('请求超时');
+              if (retryTimes == 0) {
+                onFailure();
+              }
+            }
+          }, 5000);
+          fetch(url).then(function(response) {
+            if (status !== 2) {
+              clearTimeout(timer);
+              resolve(response);
+              timer = null;
+              status = 1;
+            }
+            if (response.ok) {
+              return response.json();
+            }
+            throw new Error('Network response was not ok.');
+          }).then(function(data) {
+            retryTimes = 0;
+            utils.onLoadSuccess(el);
+            callback(data);
+          }).catch(function(error) {
+            if (retryTimes > 0) {
+              retryTimes -= 1;
+              setTimeout(() => {
+                req();
+              }, 5000);
+            } else {
+              utils.onLoadFailure(el);
+              onFailure();
+            }
+          });
+        });
+      }
+      req();
+    },
+  };
+</script>
+
+<script>
+  const sidebar = {
+    leftbar: () => {
+      if (l_body) {
+        l_body.toggleAttribute('leftbar');
+        l_body.removeAttribute('rightbar');
+      }
+    },
+    rightbar: () => {
+      if (l_body) {
+        l_body.toggleAttribute('rightbar');
+        l_body.removeAttribute('leftbar');
+      }
+    },
+    dismiss: () => {
+      if (l_body) {
+        l_body.removeAttribute('leftbar');
+        l_body.removeAttribute('rightbar');
+      }
+    },
+    toggleTOC: () => {
+      document.querySelector('#data-toc').classList.toggle('collapse');
+    }
+  }
+</script>
+
+<!-- required -->
+<script src="/js/main.js?v=1.27.0" async></script>
+
+<!-- optional -->
+
+
+
+<script defer>
+  window.addEventListener('DOMContentLoaded', (event) => {
+    ctx.services = Object.assign({}, JSON.parse(`{"mdrender":{"js":"/js/services/mdrender.js"},"siteinfo":{"js":"/js/services/siteinfo.js","api":null},"ghinfo":{"js":"/js/services/ghinfo.js"},"sites":{"js":"/js/services/sites.js"},"friends":{"js":"/js/services/friends.js"},"timeline":{"js":"/js/services/timeline.js"},"fcircle":{"js":"/js/services/fcircle.js"},"weibo":{"js":"/js/services/weibo.js"},"memos":{"js":"/js/services/memos.js"}}`));
+    for (let id of Object.keys(ctx.services)) {
+      const js = ctx.services[id].js;
+      if (id == 'siteinfo') {
+        ctx.cardlinks = document.querySelectorAll('a.link-card[cardlink]');
+        if (ctx.cardlinks?.length > 0) {
+          utils.js(js, { defer: true }).then(function () {
+            setCardLink(ctx.cardlinks);
+          });
+        }
+      } else {
+        const els = document.getElementsByClassName(`ds-${id}`);
+        if (els?.length > 0) {
+          utils.jq(() => {
+            if (id == 'timeline' || 'memos' || 'marked') {
+              utils.js(deps.marked).then(function () {
+                utils.js(js, { defer: true });
+              });
+            } else {
+              utils.js(js, { defer: true });
+            }
+          });
+        }
+      }
+    }
+  });
+</script>
+
+<script>
+  window.addEventListener('DOMContentLoaded', (event) => {
+    ctx.search = {
+      path: `/search.json`,
+    }
+    utils.js('/js/search/local-search.js', { defer: true });
+  });
+</script><script>
+  window.FPConfig = {
+    delay: 0,
+    ignoreKeywords: [],
+    maxRPS: 5,
+    hoverDelay: 25
+  };
+</script>
+<script defer src="https://cdn.bootcdn.net/ajax/libs/flying-pages/2.1.2/flying-pages.min.js"></script><script defer src="https://cdn.bootcdn.net/ajax/libs/vanilla-lazyload/17.8.4/lazyload.min.js"></script>
+<script>
+  // https://www.npmjs.com/package/vanilla-lazyload
+  // Set the options globally
+  // to make LazyLoad self-initialize
+  window.lazyLoadOptions = {
+    elements_selector: ".lazy",
+  };
+  // Listen to the initialization event
+  // and get the instance of LazyLoad
+  window.addEventListener(
+    "LazyLoad::Initialized",
+    function (event) {
+      window.lazyLoadInstance = event.detail.instance;
+    },
+    false
+  );
+  document.addEventListener('DOMContentLoaded', function () {
+    window.lazyLoadInstance?.update();
+  });
+</script><script>
+  ctx.fancybox = {
+    selector: `.timenode p>img`,
+    css: `https://cdn.bootcdn.net/ajax/libs/fancyapps-ui/5.0.22/fancybox/fancybox.min.css`,
+    js: `https://cdn.bootcdn.net/ajax/libs/fancyapps-ui/5.0.22/fancybox/fancybox.umd.min.js`
+  };
+  var selector = '[data-fancybox]:not(.error)';
+  if (ctx.fancybox.selector) {
+    selector += `, ${ctx.fancybox.selector}`
+  }
+  var needFancybox = document.querySelectorAll(selector).length !== 0;
+  if (!needFancybox) {
+    const els = document.getElementsByClassName('ds-memos');
+    if (els != undefined && els.length > 0) {
+      needFancybox = true;
+    }
+  }
+  if (needFancybox) {
+    utils.css(ctx.fancybox.css);
+    utils.js(ctx.fancybox.js, { defer: true }).then(function () {
+      Fancybox.bind(selector, {
+        hideScrollbar: false,
+        Thumbs: {
+          autoStart: false,
+        },
+        caption: (fancybox, slide) => {
+          return slide.triggerEl.alt || null
+        }
+      });
+    })
+  }
+</script><script>
+  window.addEventListener('DOMContentLoaded', (event) => {
+    const swiper_api = document.getElementById('swiper-api');
+    if (swiper_api != undefined) {
+      utils.css(`https://unpkg.com/swiper@10.3.1/swiper-bundle.min.css`);
+      utils.js(`https://unpkg.com/swiper@10.3.1/swiper-bundle.min.js`, { defer: true }).then(function () {
+        const effect = swiper_api.getAttribute('effect') || '';
+        var swiper = new Swiper('.swiper#swiper-api', {
+          slidesPerView: 'auto',
+          spaceBetween: 8,
+          centeredSlides: true,
+          effect: effect,
+          loop: true,
+          pagination: {
+            el: '.swiper-pagination',
+            clickable: true,
+          },
+          navigation: {
+            nextEl: '.swiper-button-next',
+            prevEl: '.swiper-button-prev',
+          },
+        });
+      })
+    }
+  });
+</script><script>
+  document.addEventListener('DOMContentLoaded', function () {
+    window.codeElements = document.querySelectorAll('.code');
+    if (window.codeElements.length > 0) {
+      ctx.copycode = {
+        default_text: `Copy`,
+        success_text: `Copied`,
+        toast: `复制成功`,
+      };
+      utils.js('/js/plugins/copycode.js');
+    }
+  });
+</script>
+
+
+<!-- inject -->
+
+</div></body></html>
